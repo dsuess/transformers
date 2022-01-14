@@ -1,0 +1,37 @@
+name: Delete dev documentation
+
+on:
+  pull_request:
+    types: [ closed ]
+
+
+jobs:
+  build_and_package:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash -l {0}
+    env:
+      PR_NUMBER: ${{ github.event.number }}
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: 'huggingface/doc-build-dev'
+          path: doc-build-dev
+          token: ${{ secrets.HUGGINGFACE_PUSH }}
+
+      - name: Setup git
+        run: |
+          git config --global user.name "Hugging Face Doc Builder"
+          git config --global user.email docs@huggingface.co
+
+      - name: Push to repositories
+        run: |
+          cd doc-build-dev/transformers
+          ls
+          rm -rf pr_$PR_NUMBER
+          ls
+          git add .
+          git commit -m "Closed PR ${GITHUB_REF##*/}"
+          git push origin main

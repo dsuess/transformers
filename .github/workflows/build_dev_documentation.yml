@@ -1,37 +1,42 @@
-name: Build documentation
+name: Build dev documentation
 
 on:
-  push:
-    branches:
-      - master
-      - doc-builder*
-      - v*-release
+  pull_request:
+
 
 jobs:
   build_and_package:
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash -l {0}
+    runs-on: [self-hosted, doc-builder]
+    container:
+      image: huggingface/doc-builder-transformers
+      options: "-v /home/github_actions:/mnt"
+    env:
+      PR_NUMBER: ${{ github.event.number }}
 
     steps:
       - uses: actions/checkout@v2
         with:
-          repository: 'huggingface/doc-build'
-          path: doc-build
-          token: ${{ secrets.HUGGINGFACE_PUSH }}
-      
+          repository: 'huggingface/doc-builder'
+          path: doc-builder
+
       - uses: actions/checkout@v2
         with:
           repository: 'huggingface/transformers'
           path: transformers
-      
+
       - uses: actions/checkout@v2
         with:
           repository: 'huggingface/notebooks'
           path: notebooks
-          token: ${{ secrets.HUGGINGFACE_PUSH }}
-      
+
+      - name: Comment PR
+        uses: thollander/actions-comment-pull-request@v1
+        if: github.event.pull_request.action == 'opened'
+
+        with:
+          message: 'Thank you for your PR! The docs for this PR live [here](https://moon-ci-docs.huggingface.co/docs/transformers/pr_15110).\n\nAll of your documentation changes will be reflected on that endpoint.'
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Loading cache.
         uses: actions/cache@v2
         id: cache
@@ -44,7 +49,7 @@ jobs:
 
       - name: Setup environment
         run: |
-          sudo apt-get -y update && sudo apt-get install -y libsndfile1-dev
+          apt-get -y update && apt-get install -y libsndfile1-dev
 
           pip install git+https://github.com/huggingface/doc-builder
           cd transformers
@@ -57,7 +62,7 @@ jobs:
           pip install torchvision
           python -m pip install 'git+https://github.com/facebookresearch/detectron2.git'
 
-          sudo apt install tesseract-ocr
+          apt install -y tesseract-ocr
           pip install pytesseract
           pip install pytorch-quantization --extra-index-url https://pypi.ngc.nvidia.com
           pip install https://github.com/kpu/kenlm/archive/master.zip
@@ -67,36 +72,26 @@ jobs:
           git config --global user.name "Hugging Face Doc Builder"
           git config --global user.email docs@huggingface.co
           
-          cd doc-build
+          cd doc-builder
           git pull origin main
           cd ..
 
           cd notebooks
           git pull origin master
           cd ..
+          WRITE=`cat /mnt/WRITE`
+          
+          rm -rf doc-build-dev
+          git clone https://HuggingFaceDocBuilder:$WRITE@github.com/huggingface/doc-build-dev
 
       - name: Make documentation
         run: |
-          doc-builder build transformers transformers/docs/source --build_dir doc-build --notebook_dir notebooks/transformers_doc --clean
+          doc-builder build transformers transformers/docs/source --build_dir doc-build-dev --notebook_dir notebooks/transformers_doc --clean --version pr_$PR_NUMBER
 
       - name: Push to repositories
         run: |
-          cd doc-build
-          if [[ `git status --porcelain` ]]; then
-            git add .
-            git commit -m "Updated with commit ${{ github.sha }} \n\nSee: https://github.com/huggingface/transformers/commit/${{ github.sha }}"
-            git push origin main
-          else
-            echo "No diff in the documentation."
-          fi
-          cd ..
-
-          cd notebooks
-          if [[ `git status --porcelain` ]]; then
-            git add transformers_doc
-            git commit -m "Updated Transformer doc notebooks with commit ${{ github.sha }} \n\nSee: https://github.com/huggingface/transformers/commit/${{ github.sha }}"
-            git push origin master
-          else
-            echo "No diff in the notebooks."
-          fi
-          cd ..
+          cd doc-build-dev
+          ls
+          git add .
+          git commit -m "Updated with commit ${{ github.sha }} \n\nSee: https://github.com/huggingface/transformers/commit/${{ github.sha }}"
+          git push origin main
