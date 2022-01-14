@@ -12,7 +12,7 @@ jobs:
       options: "-v /home/github_actions:/mnt"
     env:
       PR_NUMBER: ${{ github.event.number }}
-      ACTION: ${{ github.event.pull_request.action }}
+      EVENT_CONTEXT: ${{ toJSON(github.event) }}
 
     steps:
       - uses: actions/checkout@v2
@@ -32,7 +32,7 @@ jobs:
 
       - name: Print
         run: |
-          echo $ACTION
+          echo $EVENT_CONTEXT
 
       - name: Comment PR
         uses: thollander/actions-comment-pull-request@v1
