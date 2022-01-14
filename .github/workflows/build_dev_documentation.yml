@@ -12,6 +12,7 @@ jobs:
       options: "-v /home/github_actions:/mnt"
     env:
       PR_NUMBER: ${{ github.event.number }}
+      ACTION: ${{ github.event.pull_request.action }}
 
     steps:
       - uses: actions/checkout@v2
@@ -28,6 +29,10 @@ jobs:
         with:
           repository: 'huggingface/notebooks'
           path: notebooks
+
+      - name: Print
+        run: |
+          echo $ACTION
 
       - name: Comment PR
         uses: thollander/actions-comment-pull-request@v1

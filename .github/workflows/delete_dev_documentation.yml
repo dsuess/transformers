@@ -13,6 +13,7 @@ jobs:
         shell: bash -l {0}
     env:
       PR_NUMBER: ${{ github.event.number }}
+      ACTION: ${{ github.event.pull_request.action }}
 
     steps:
       - uses: actions/checkout@v2
@@ -20,6 +21,10 @@ jobs:
           repository: 'huggingface/doc-build-dev'
           path: doc-build-dev
           token: ${{ secrets.HUGGINGFACE_PUSH }}
+
+      - name: Print
+        run: |
+          echo $ACTION
 
       - name: Setup git
         run: |
